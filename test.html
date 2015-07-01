@@ -1,18 +1,66 @@
-<!DOCTYPE html>
-
-<html>
-<head>
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-  <title>Spoon-Knife</title>
-  <LINK href="styles.css" rel="stylesheet" type="text/css">
-</head>
-
-<body>
-
-<!-- Feel free to change this text here -->
-<p>,
-  <color :#DF3A01> Daft Punk is Playing in my house </color>
-</p>
-
-</body>
-</html>
+SELECT
+	DATE_FORMAT(elegiveis.periodo, '%d/%m/%Y') AS periodo,
+	elegiveis.matricula,
+	CONVERT(cli_meta_aging_mes.meta, DECIMAL(13, 4)) AS aging_meta,
+	CONVERT((SUM(tmp_aging.montante_usp) - t2.montante_usp - t3.montante_usp)
+	/ (SUM(tmp_aging.montante_usp) - t3.montante_usp), DECIMAL(13, 4)) AS aging_real -- alterado dia 13/04/2015
+FROM
+	elegiveis
+LEFT JOIN
+	tmp_aging
+	ON
+		tmp_aging.periodo = elegiveis.periodo
+	AND
+		tmp_aging.canal = 13
+	LEFT JOIN
+	(
+		SELECT
+			tmp_aging.periodo,
+			tmp_aging.canal,
+			SUM(tmp_aging.montante_usp) AS montante_usp
+		FROM
+			tmp_aging
+		WHERE
+			tmp_aging.periodo = '${DAT_PERIODO}'
+		and
+			tmp_aging.cod_situacao = '1'
+		GROUP BY
+			1, 2
+	) AS t2
+		ON
+			t2.periodo = elegiveis.periodo
+		AND
+			t2.canal = 13
+	LEFT JOIN
+	(
+		SELECT
+			tmp_aging.periodo,
+			tmp_aging.canal,
+			SUM(tmp_aging.montante_usp) AS montante_usp
+		FROM
+			tmp_aging
+		WHERE
+			tmp_aging.periodo = '${DAT_PERIODO}'
+		and
+			tmp_aging.cod_situacao = '7'
+		GROUP BY
+			1, 2
+	) AS t3
+		ON
+			t3.periodo = elegiveis.periodo
+		AND
+			t3.canal = 13
+LEFT JOIN
+	cli_meta_aging_mes 
+	ON
+		cli_meta_aging_mes.periodo = elegiveis.periodo
+	AND
+		cli_meta_aging_mes.canal = 13
+WHERE
+	elegiveis.periodo = '${DAT_PERIODO}'
+	AND
+		elegiveis.cargo IN('GERENTE')
+    AND
+		elegiveis.canal IN(10, 13, 40)
+GROUP BY
+	elegiveis.matricula;
